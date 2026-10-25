@@ -1,3 +1,4 @@
+from typing import Optional
 from datetime import datetime
 from typing import List, Optional
 
@@ -31,6 +32,11 @@ class BlogResponse(BaseModel):
     content: str
     created_at: Optional[datetime] = None
     author: UserResponse
+
+
+class BlogUpdate(BaseModel):
+       title: Optional[str] = None
+       content: Optional[str] = None
 
 
 class BlogList(BaseModel):

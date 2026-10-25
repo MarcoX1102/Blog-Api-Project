@@ -127,6 +127,22 @@ def get_blogs(
     return {"page": page, "limit": limit, "total": total, "data": blogs}
 
 
+# My blogs (only the logged-in user's blogs)
+# NOTE: this must stay ABOVE "/blogs/{id}", otherwise "my" is treated as an id
+@app.get("/blogs/my", response_model=list[schemas.BlogResponse])
+def my_blogs(
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    return (
+        db.query(models.Blog)
+        .options(joinedload(models.Blog.author))
+        .filter(models.Blog.author_id == user.id)
+        .order_by(models.Blog.created_at.desc(), models.Blog.id.desc())
+        .all()
+    )
+
+
 # Read one blog
 @app.get("/blogs/{id}", response_model=schemas.BlogResponse)
 def get_blog(id: int, db: Session = Depends(get_db)):
@@ -154,6 +170,28 @@ def update_blog(
     db.commit()
     db.refresh(existing)
     return existing
+
+
+# Rename / partial update (only the author)
+@app.patch("/blogs/{id}", response_model=schemas.BlogResponse)
+def rename_blog(
+    id: int,
+    data: schemas.BlogUpdate,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    blog = db.query(models.Blog).filter(models.Blog.id == id).first()
+    if not blog:
+        raise HTTPException(status_code=404, detail="Blog not found")
+    if blog.author_id != user.id:
+        raise HTTPException(status_code=403, detail="You can only edit your own blogs")
+    if data.title is not None:
+        blog.title = data.title
+    if data.content is not None:
+        blog.content = data.content
+    db.commit()
+    db.refresh(blog)
+    return blog
 
 
 # Delete blog (only the author)

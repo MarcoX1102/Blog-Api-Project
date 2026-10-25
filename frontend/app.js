@@ -153,7 +153,9 @@ async function viewPost(id) {
   $app.replaceChildren(h("p", { class: "muted" }, "Loading..."));
   try {
     const b = await api(`/blogs/${id}`);
-    const mine = state.user && state.user.id === b.author.id;
+    // const mine = state.user && state.user.id === b.author.id;
+    // const mine = state.user && String(state.user.id) === String(b.author.id);
+    const mine = state.user && state.user.username === b.author.username;
     $app.replaceChildren(
       h("a", { class: "back", href: "#/" }, "\u2190 All posts"),
       h(
