@@ -1,7 +1,12 @@
 "use strict";
 
 // Change this to your deployed API URL when you go live
-const API = "http://127.0.0.1:8000";
+// const API = "http://127.0.0.1:8000";
+
+const API =
+  location.hostname === "localhost" || location.hostname === "127.0.0.1"
+    ? "http://127.0.0.1:8000"
+    : "https://blog-api-project-3dvm.onrender.com";
 const LIMIT = 5;
 const $app = document.getElementById("app");
 const state = { user: null, page: 1, search: "" };
