@@ -102,6 +102,86 @@ function card(b) {
   );
 }
 
+/* ---------- "Your posts" (rename + delete) ---------- */
+async function removeMine(id) {
+  if (!confirm("Delete this post?")) return;
+  try {
+    await api(`/blogs/${id}`, { method: "DELETE" });
+    toast("Post deleted.", true);
+    viewHome();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+function myCard(b) {
+  const titleView = () => h("h2", {}, h("a", { href: `#/post/${b.id}` }, b.title));
+  const top = h("div", {}, titleView());
+
+  const startRename = () => {
+    const input = h("input", { type: "text", maxlength: "200", value: b.title });
+    const cancel = () => top.replaceChildren(titleView());
+    const save = async () => {
+      const t = input.value.trim();
+      if (!t || t === b.title) return cancel();
+      try {
+        await api(`/blogs/${b.id}`, { method: "PATCH", body: { title: t } });
+        toast("Post renamed.", true);
+        viewHome();
+      } catch (err) {
+        toast(err.message);
+      }
+    };
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") save();
+      if (e.key === "Escape") cancel();
+    });
+    top.replaceChildren(
+      input,
+      h(
+        "div",
+        { class: "row" },
+        h("button", { class: "btn primary", onclick: save }, "Save"),
+        h("button", { class: "btn", onclick: cancel }, "Cancel")
+      )
+    );
+    input.focus();
+    input.select();
+  };
+
+  return h(
+    "article",
+    { class: "card" },
+    top,
+    h("p", { class: "meta" }, fmtDate(b.created_at)),
+    h(
+      "div",
+      { class: "row" },
+      h("button", { class: "btn", onclick: startRename }, "Rename"),
+      h("a", { class: "btn", href: `#/edit/${b.id}` }, "Edit"),
+      h("button", { class: "btn danger", onclick: () => removeMine(b.id) }, "Delete")
+    )
+  );
+}
+
+async function loadMine(box) {
+  box.replaceChildren(h("h2", {}, "Your posts"), h("p", { class: "muted" }, "Loading..."));
+  try {
+    const mine = await api("/blogs/my");
+    box.replaceChildren(h("h2", {}, "Your posts"));
+    if (!mine.length) {
+      box.append(
+        h("p", { class: "muted" }, "You haven't written any posts yet. "),
+        h("a", { class: "btn primary", href: "#/new" }, "Write your first post")
+      );
+      return;
+    }
+    mine.forEach((b) => box.append(myCard(b)));
+  } catch (err) {
+    box.replaceChildren(h("h2", {}, "Your posts"), h("p", { class: "muted" }, err.message));
+  }
+}
+
 async function viewHome() {
   const input = h("input", { type: "search", placeholder: "Search by title...", value: state.search });
   const form = h(
@@ -120,7 +200,12 @@ async function viewHome() {
   );
   const list = h("div", {}, h("p", { class: "muted" }, "Loading..."));
   const pager = h("div", { class: "pager" });
-  $app.replaceChildren(h("h1", {}, "Latest posts"), form, list, pager);
+
+  // Logged-in users see their own posts first, with Rename / Edit / Delete
+  const mineBox = state.user ? h("section", { class: "mine" }) : null;
+  $app.replaceChildren(...(mineBox ? [mineBox] : []), h("h1", {}, "Latest posts"), form, list, pager);
+  if (mineBox) loadMine(mineBox);
+
   try {
     const q = new URLSearchParams({ page: state.page, limit: LIMIT, search: state.search });
     const res = await api("/blogs?" + q);
